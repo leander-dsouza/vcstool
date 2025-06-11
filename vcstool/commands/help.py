@@ -1,14 +1,18 @@
 import argparse
 import sys
 
-try:
-    from importlib.metadata import entry_points
-except ImportError:  # Python < 3.8
-    from importlib_metadata import entry_points
-
 from vcstool.clients import vcstool_clients
 from vcstool.commands import vcstool_commands
+from vcstool.errors import UnsupportedPythonVersionError
 from vcstool.streams import set_streams
+
+
+if sys.version_info >= (3, 8):
+    from importlib.metadata import entry_points
+elif sys.version_info >= (3, 7):
+    from importlib_metadata import entry_points
+else:
+    raise UnsupportedPythonVersionError()
 
 
 def main(args=None, stdout=None, stderr=None):
@@ -93,15 +97,19 @@ def get_entrypoint(command):
     eps = entry_points()
     ep_name = 'vcs-' + commands[0]
 
-    if hasattr(eps, 'select'):  # Python 3.10+
+    if sys.version_info >= (3, 10):
         entry_point = next(iter(
             eps.select(group='console_scripts', name=ep_name)))
         if entry_point:
             return entry_point.load()
-    else:  # Python < 3.10
+
+    elif sys.version_info >= (3, 7):
         for ep in eps.get('console_scripts', []):
             if ep.name == ep_name:
                 return ep.load()
+    else:
+        raise UnsupportedPythonVersionError()
+
     return None
 
 
